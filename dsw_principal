@@ -1,0 +1,125 @@
+package dsw_principal;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+package dsw_principal;
+
+public class Destino {
+    private Long id;
+    private String nome;
+    private String localizacao;
+    private double mediaAvaliacao = 0.0;
+    private int totalAvaliacoes = 0;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
+    }
+
+    public String getLocalizacao() {
+        return localizacao;
+    }
+
+    public void setLocalizacao(String localizacao) {
+        this.localizacao = localizacao;
+    }
+
+    public double getMediaAvaliacao() {
+        return mediaAvaliacao;
+    }
+
+    public void setMediaAvaliacao(double mediaAvaliacao) {
+        this.mediaAvaliacao = mediaAvaliacao;
+    }
+
+    public int getTotalAvaliacoes() {
+        return totalAvaliacoes;
+    }
+
+    public void setTotalAvaliacoes(int totalAvaliacoes) {
+        this.totalAvaliacoes = totalAvaliacoes;
+    }
+}
+
+@RestController
+@RequestMapping("/destinos")
+public class DestinoController {
+
+    private List<Destino> destinos = new ArrayList<>();
+    private Long idAtual = 1L;
+
+    @PostMapping
+    public ResponseEntity<Destino> cadastrarDestino(@RequestBody Destino destino) {
+        destino.setId(idAtual++);
+        destinos.add(destino);
+        return ResponseEntity.status(HttpStatus.CREATED).body(destino);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Destino>> listarDestinos() {
+        return ResponseEntity.ok(destinos);
+    }
+
+    @GetMapping("/pesquisa")
+    public ResponseEntity<List<Destino>> pesquisarDestinos(@RequestParam String termo) {
+        List<Destino> resultados = destinos.stream()
+            .filter(destino -> destino.getNome().toLowerCase().contains(termo.toLowerCase()) 
+                            || destino.getLocalizacao().toLowerCase().contains(termo.toLowerCase()))
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(resultados);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Destino> visualizarDestino(@PathVariable Long id) {
+        return destinos.stream()
+                .filter(destino -> destino.getId().equals(id))
+                .findFirst()
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/{id}/avaliacao")
+    public ResponseEntity<Destino> avaliarDestino(@PathVariable Long id, @RequestParam int nota) {
+        if (nota < 1 || nota > 10) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        for (Destino destino : destinos) {
+            if (destino.getId().equals(id)) {
+                destino.setTotalAvaliacoes(destino.getTotalAvaliacoes() + 1);
+                destino.setMediaAvaliacao(
+                    (destino.getMediaAvaliacao() * (destino.getTotalAvaliacoes() - 1) + nota) 
+                    / destino.getTotalAvaliacoes());
+                return ResponseEntity.ok(destino);
+            }
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> excluirDestino(@PathVariable Long id) {
+        boolean removido = destinos.removeIf(destino -> destino.getId().equals(id));
+        if (removido) {
+            return ResponseEntity.noContent().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+        
+    }
+}
